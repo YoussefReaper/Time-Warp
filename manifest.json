@@ -1,0 +1,22 @@
+{
+    "manifest_version": 3,
+    "name": "Time Warp (did'nt deploy)",
+    "version": "0.0.1",
+    "description": "wayback machine thing",
+    "permissions": [
+        "activeTab"
+    ],
+    "host_permissions": [
+        "*://archive.org/*",
+        "*://web.archive.org/*"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["content.js"]
+        }
+    ]
+}
