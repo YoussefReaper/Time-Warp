@@ -1,13 +1,14 @@
 {
     "manifest_version": 3,
-    "name": "Time Warp (did'nt deploy)",
-    "version": "0.0.1",
-    "description": "wayback machine thing",
+    "name": "Time Warp",
+    "version": "1.0.1",
+    "description": "Travel back in time to view archived versions of the websites",
     "permissions": [
-        "activeTab"
+        "declarativeNetRequest",
+        "declarativeNetRequestWithHostAccess",
+        "webNavigation"
     ],
     "host_permissions": [
-        "*://archive.org/*",
         "*://web.archive.org/*"
     ],
     "background": {
@@ -16,7 +17,21 @@
     "content_scripts": [
         {
             "matches": ["<all_urls>"],
-            "js": ["content.js"]
+            "js": ["content.js"],
+            "run_at": "document_idle"
         }
-    ]
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": ["warp.html", "warp.js"],
+            "matches": ["<all_urls>"]
+        }
+    ],
+    "declarative_net_request": {
+        "rule_resources": [{
+            "id": "bypass_csp",
+            "enabled": true,
+            "path": "rules.json"
+        }]
+    }
 }
