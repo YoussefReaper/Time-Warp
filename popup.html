@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        body {
+            width: 700px;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: rgb(20, 15, 31);
+            color: rgb(243, 240, 255);
+            margin: 0;
+            padding: 16px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between; align-items: center; margin-bottom: 12px;
+        }
+        .diff-container {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+            height: 350px;
+        }
+        .pane {
+            flex: 1;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            overflow: auto;
+            background: rgb(255, 255, 255);
+            color: rgb(20, 15, 32);
+            font-size: 11px;
+            padding: 10px;
+            border-radius: 8px;
+            position: relative;
+            word-wrap: break-word;
+        }
+        .red-highlight {
+            background: rgba(255, 71, 87, 0.3);
+            font-weight: bold;
+        }
+        .green-highlight {
+            background: rgba(46, 204, 113, 0.3);
+            font-weight: bold;
+        }
+        button {
+            background: rgb(168, 85, 247);
+            color: rgb(255, 255, 255);
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+        button:hover {
+            background: rgb(147, 51, 234);
+        }
+        input[type=range] {
+            width: 100%;
+            margin: 12px 0;
+        }
+        input[type=text] {
+            background: transparent;
+            border: 1px solid rgba(139, 92, 246, 0.4);
+            color: rgb(243, 240, 255);
+            padding: 6px;
+            border-radius: 4px;
+            width: 150px;
+            font-size: 11px;
+        }
+        #ai-out {
+            margin-top: 16px;
+            padding: 12px;
+            background: rgba(168, 85, 247, 0.1);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .status-row {
+            font-size: 12px;
+            color: rgb(185, 174, 214);
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h3 style="margin: 0; color: rgb(168, 85, 247);">Time warp Compare BOI!</h3>
+        <label style="font-size: 12px; font-weight: bold;"><input type="checkbox" id="compare-toggle">compare mode</label>
+    </div>
+    <div id="compare-ui" style="display:none;">
+        <div class="status-row">
+            <span>Start: <strong id="start-lbl" style="color: white;">-</strong></span>
+            <span>End: <strong id="end-lbl" style="color:white">-</strong></span>
+        </div>
+        <input type="range" id="pop-slider" min="0" max="0" value="0" disabled>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <button id="go-btn">diff Boi</button>
+            <input type="text" id="ai-key" placeholder="openai key boy">
+        </div>
+        <div id="ai-out">ai summary pending boi...</div>
+        <div class="diff-container">
+            <div id="pane1" class="pane">screenshots/text start here</div>
+            <div id="pane2" class="pane">screenshots/text end here</div>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

@@ -6,10 +6,15 @@
     "permissions": [
         "declarativeNetRequest",
         "declarativeNetRequestWithHostAccess",
-        "webNavigation"
+        "webNavigation",
+        "storage",
+        "tabs",
+        "scripting",
+        "activeTab"
     ],
     "host_permissions": [
-        "*://web.archive.org/*"
+        "*://*.archive.org/*",
+        "<all_urls>"
     ],
     "background": {
         "service_worker": "background.js"
@@ -33,5 +38,8 @@
             "enabled": true,
             "path": "rules.json"
         }]
+    },
+    "action": {
+        "default_popup": "popup.html"
     }
 }

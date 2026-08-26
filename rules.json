@@ -12,8 +12,32 @@
             ]
         },
         "condition": {
-            "urlFilter": "*://web.archive.org/*",
+            "urlFilter": "*://*.archive.org/*",
             "resourceTypes": ["sub_frame"]
+        }
+        
+    },
+    {
+        "id": 2,
+        "priority": 1,
+        "action": {
+            "type": "modifyHeaders",
+            "responseHeaders": [
+                {
+                    "header": "Access-Control-Allow-Origin",
+                    "operation": "set",
+                    "value": "*"
+                },
+                {
+                    "header": "Access-Control-Allow-Methods",
+                    "operation": "set",
+                    "value": "GET, POST, OPTIONS"
+                }
+            ]
+        },
+        "condition": {
+            "urlFilter": "||archive.org",
+            "resourceTypes": ["xmlhttprequest"]
         }
     }
 ]

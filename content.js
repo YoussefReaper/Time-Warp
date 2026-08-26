@@ -5,41 +5,66 @@ let snapshots = [];
 let activeIframe = null;
 let currentUrl = window.location.href;
 
-const hostElement = document.createElement("div");
-hostElement.id = "timewarp-extension-host";
-hostElement.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: ${maxZ};
+const biggestBox = document.createElement("div");
+biggestBox.id = "biggestBox";
+const theBoxShadow = biggestBox.attachShadow({ mode: "open" });
+const design = document.createElement("style");
+const theRealContainer = document.createElement("div");
+theRealContainer.id = "theRealContainer";
+
+biggestBox.style.cssText = `
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: ${maxZ};
 `;
-const shadowRoot = hostElement.attachShadow({ mode: "open" });
-const style = document.createElement("style");
-style.textContent = `
+theRealContainer.innerHTML = `
+    <div class="controls" id="ui-controls">
+        <button id="ui-toggle-btn">Hide</button>
+        <button id="ui-theme-btn">Light Mode</button>
+    </div>
+    <div id="ui-container">
+        <div class="brand">
+            <svg viewBox="0 0 24 24">
+                <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/>
+                <path d="M12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+            </svg>
+        </div>
+
+        <div class="slider-wrapper">
+            <span class="slider-label">Past</span>
+            <input type="range" id="ui-slider" min="0" max="0" value="0" disabled>
+            <span class="slider-label">Now</span>
+        </div>
+
+        <div id="ui-display" class="loading">Loading</div>
+    </div>
+`;
+design.textContent = `
     :host {
-        --tw-bg: rgba(20, 15, 32, 0.75);
-        --tw-text: #f3f0ff;
-        --tw-text-muted: #b9aed6;
-        --tw-border: rgba(139, 92, 246, 0.2);
-        --tw-accent: #a855f7;
-        --tw-glass-blur: blur(16px);
-        --tw-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        --ui-bg: rgba(20, 15, 32, 0.75);
+        --ui-text: rgb(243, 240, 255);
+        --ui-text-muted: rgb(185, 174, 214);
+        --ui-border: rgba(139, 92, 246, 0.2);
+        --ui-accent: rgb(168, 85, 247);
+        --ui-glass-blur: blur(10px);
+        --ui-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     }
 
     :host(.light-mode) {
-        --tw-bg: rgba(250, 248, 255, 0.85);
-        --tw-text: #2e2340;
-        --tw-text-muted: #6b5c8c;
-        --tw-border: rgba(124, 58, 237, 0.15);
-        --tw-accent: #7c3aed;
-        --tw-accent-hover: #6d28d9;
-        --tw-shadow: 0 8px 32px rgba(124, 58, 237, 0.15);
+        --ui-bg: rgba(250, 248, 255, 0.85);
+        --ui-text: rgb(46, 35, 64);
+        --ui-text-muted: #6b5c8c;
+        --ui-border: rgba(124, 58, 237, 0.15);
+        --ui-accent: rgb(124, 58, 237);
+        --ui-accent-hover: rgb(109, 40, 217);
+        --ui-shadow: 0 8px 32px rgba(124, 58, 237, 0.15);
     }
 
-    #tw-master-container {
+    #theRealContainer {
         position: fixed;
         bottom: 30px;
         left: 50%;
@@ -67,10 +92,10 @@ style.textContent = `
     }
 
     button {
-        background: var(--tw-bg);
-        backdrop-filter: var(--tw-glass-blur);
-        border: 1px solid var(--tw-border);
-        color: var(--tw-text-muted);
+        background: var(--ui-bg);
+        backdrop-filter: var(--ui-glass-blur);
+        border: 1px solid var(--ui-border);
+        color: var(--ui-text-muted);
         padding: 6px 14px;
         border-radius: 20px;
         cursor: pointer;
@@ -82,34 +107,40 @@ style.textContent = `
     }
 
     button:hover {
-        background: var(--tw-accent);
+        background: var(--ui-accent);
         color: #fff;
-        border-color: var(--tw-accent);
+        border-color: var(--ui-accent);
         box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
     }
 
     #ui-container {
         width: 85vw;
-        max-width: 650px;
-        background: var(--tw-bg);
-        backdrop-filter: var(--tw-glass-blur);
-        -webkit-backdrop-filter: var(--tw-glass-blur);
-        padding: 18px 24px;
+        max-width: 750px;
+        background: var(--ui-bg);
+        backdrop-filter: var(--ui-glass-blur);
+        -webkit-backdrop-filter: var(--ui-glass-blur);
+        padding: 16px 24px;
         border-radius: 24px;
-        border: 1px solid var(--tw-border);
-        box-shadow: var(--tw-shadow);
+        border: 1px solid var(--ui-border);
+        box-shadow: var(--ui-shadow);
         display: flex;
         align-items: center;
-        gap: 20px;
+        justify-content: space-between;
         pointer-events: auto;
-        transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease, background 0.3s ease;
+        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;    
+    }
+
+    #ui-container.collapsed {
+      opacity: 0;
+      transform: translateY(30px) scale(0.95);
+      pointer-events: none;
     }
 
     .brad {
         display: flex;
         align-items: center;
         gap: 8px;
-        color: var(--tw-accent);
+        color: var(--ui-accent);
     }
 
     .brand svg {
@@ -118,25 +149,25 @@ style.textContent = `
         fill: currentColor;
     }
 
-    #tw-display {
-        min-width: 110px;
+    #ui-display {
+        min-width: 140px;
         text-align: center;
         font-family: 'JetBrains Mono', 'Courier New', monospace;
         font-size: 13px;
         font-weight: 700;
         background: rgba(168, 85, 247, 0.1);
-        color: var(--tw-accent);
+        color: var(--ui-accent);
         padding: 8px 12px;
         border-radius: 12px;
         border: 1px solid rgba(168, 85, 247, 0.2);
         transition: all 0.3s ease;
     }
 
-    #tw-display.loading {
+    #ui-display.loading {
         animation: pulse 1.5s infinite;
-        color: var(--tw-text-muted);
+        color: var(--ui-text-muted);
         background: transparent;
-        border-color: var(--tw-border);
+        border-color: var(--ui-border);
     }
 
     @keyframes pulse {
@@ -145,12 +176,22 @@ style.textContent = `
         100% { opacity: 0.5; }
     }
 
+    .slider-wrapper{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-grow: 1;
+        gap: 16px;
+        margin: 0 32px;
+    }
+
     .slider-label {
         font-size: 11px;
-        color: var(--tw-text-muted);
-        font-weight: 600;
+        color: var(--ui-text-muted);
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1px;
+        white-space: nowrap;
     }
 
     input[type=range] {
@@ -168,7 +209,7 @@ style.textContent = `
     input[type=range]::-webkit-slider-runnable-track {
         width: 100%;
         height: 6px;
-        background: var(--tw-border);
+        background: var(--ui-border);
         border-radius: 10px;
         transition: all 0.2s;
     }
@@ -178,7 +219,7 @@ style.textContent = `
         height: 20px;
         width: 20px;
         border-radius: 50%;
-        background: var(--tw-accent);
+        background: var(--ui-accent);
         margin-top: -7px;
         box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
         transition: transform 0.1s, background 0.2s;
@@ -187,7 +228,7 @@ style.textContent = `
 
     input[type=range]:active::-webkit-slider-thumb {
         transform: scale(1.2);
-        background: var(--tw-accent-hover);
+        background: var(--ui-accent-hover);
     }
 
     .iframe-overlay {
@@ -205,67 +246,37 @@ style.textContent = `
     .iframe-overlay.active {opacity: 1; pointer-events: auto;}
 `;
 
-const masterContainer = document.createElement("div");
-masterContainer.id = "tw-master-container";
-masterContainer.innerHTML = `
-    <div class="controls" id="tw-controls">
-        <button id="tw-toggle-btn">Hide</button>
-        <button id="tw-theme-btn">Light Mode</button>
-    </div>
-    <div id="ui-container">
-        <div class="brand">
-            <svg viewBox="0 0 24 24">
-                <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/>
-                <path d="M12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
-            </svg>
-        </div>
+theBoxShadow.appendChild(design);
+theBoxShadow.appendChild(theRealContainer);
 
-        <div class="slider-wrapper">
-            <span class="slider-label">Past</span>
-            <input type="range" id="tw-slider" min="0" max="0" value="0" disabled>
-            <span class="slider-label">Now</span>
-        </div>
-
-        <div id="tw-display" class="loading">Loading</div>
-    </div>
-`;
-
-shadowRoot.appendChild(style);
-shadowRoot.appendChild(masterContainer);
-
-const injectUI = () => {
-  if (document.body) document.body.appendChild(hostElement);
-  else requestAnimationFrame(injectUI);
+const startFakeUI = () => {
+    if (document.body) document.body.appendChild(biggestBox);
+    else requestAnimationFrame(startFakeUI);
 };
-injectUI();
+startFakeUI();
+const slider = theBoxShadow.getElementById("ui-slider");
+const display = theBoxShadow.getElementById("ui-display");
+const uiContainer = theBoxShadow.getElementById("ui-container");
+const toggleBtn = theBoxShadow.getElementById("ui-toggle-btn");
+const themeBtn = theBoxShadow.getElementById("ui-theme-btn");
+const controls = theBoxShadow.getElementById("ui-controls");
 
-const slider = shadowRoot.getElementById("tw-slider");
-const display = shadowRoot.getElementById("tw-display");
-const uiContainer = shadowRoot.getElementById("ui-container");
-const toggleBtn = shadowRoot.getElementById("tw-toggle-btn");
-const themeBtn = shadowRoot.getElementById("tw-theme-btn");
-const controls = shadowRoot.getElementById("tw-controls");
-
-toggleBtn.addEventListener("click", () => {
+toggleBtn.addEventListener("click", ()=> {
   uiContainer.classList.toggle("collapsed");
   controls.classList.toggle("active");
-  toggleBtn.innerText = uiContainer.classList.contains("collapsed")
-    ? "Show Time Warp"
-    : "Hide";
+  toggleBtn.innerText = uiContainer.classList.contains("collapsed") ? "I need the old version" : "Please Hide";
 });
 
 themeBtn.addEventListener("click", () => {
-  hostElement.classList.toggle("light-mode");
-  themeBtn.innerText = hostElement.classList.contains("light-mode")
-    ? "Dark Mode"
-    : "Light Mode";
+  biggestBox.classList.toggle("light-mode");
+  themeBtn.innerText = biggestBox.classList.contains("light-mode") ? "Dark Mode" : "Light Mode";
 });
 
-function formatTimestamp(ts) {
-  if (!ts) return "Now";
-  const year = ts.substring(0, 4);
-  const month = ts.substring(4, 6);
-  const day = ts.substring(6, 8);
+function formatTimestamp(timestamp) {
+  if (!timestamp) return "00:00:00";
+  const year = timestamp.substring(0, 4);
+  const month = timestamp.substring(4, 6);
+  const day = timestamp.substring(6, 8);
 
   const date = new Date(`${year}-${month}-${day}`);
   return date.toLocaleDateString("en-US", {
@@ -275,9 +286,9 @@ function formatTimestamp(ts) {
   });
 }
 
-function removeActiveIframe() {
+function removeActiveIframeBoi() {
   if (activeIframe) {
-    activeIframe.style.opacity = "0";
+    activeIframe.style.opacity ="0";
     setTimeout(() => {
       if (activeIframe) {
         activeIframe.remove();
@@ -287,19 +298,15 @@ function removeActiveIframe() {
   }
 }
 
-function updateDisplay(text, isError = false) {
+function updateDisplayBoi(text, red = false) {
   display.innerText = text;
   display.classList.remove("loading");
-  display.style.background = isError
-    ? "rgba(255, 71, 87, 0.1)"
-    : "rgba(168, 85, 247, 0.1)";
-  display.style.borderColor = isError
-    ? "rgba(255, 71, 87, 0.3)"
-    : "rgba(168, 85, 247, 0.2)";
-  display.style.color = isError ? "#ff4757" : "var(--tw-accent)";
+  display.style.background = red ? "rgba(255, 71, 87, 0.1)" : "rgba(168, 85, 247, 0.1)";
+  display.style.borderColor = red ? "rgba(255, 71, 87, 0.3)" : "rgba(168, 85, 247, 0.2)";
+  display.style.color = red ? "rgb(255, 71, 87)" : "var(--ui-accent)";
 }
 
-function setDisplayLoading() {
+function setDisplayLoadingBoi() {
   display.innerText = "Scanning";
   display.classList.add("loading");
   display.style.color = "";
@@ -307,19 +314,29 @@ function setDisplayLoading() {
   display.style.borderColor = "";
 }
 
-function loadSnapshots(targetUrl) {
-  setDisplayLoading();
-  slider.disabled = true;
-  removeActiveIframe();
+function showRetryBoi(targetUrl) {
+  let retryBtn = theBoxShadow.getElementById("ui-retry-btn");
+  if (!retryBtn) {
+    retryBtn = document.createElement("button");
+    retryBtn.id = "ui-retry-btn";
+    retryBtn.innerText = "Try Again Boi";
+    retryBtn.style.marginLeft = "10px";
+    theRealContainer.querySelector(".controls").appendChild(retryBtn);
+    retryBtn.addEventListener("click", () => {
+      retryBtn.remove();
+      loadSnapshotsBoi(targetUrl);
+    });
+  }
+}
 
-  chrome.runtime.sendMessage(
-    {
-      action: "FETCH_SNAPSHOTS",
-      url: targetUrl,
-    },
-    (response) => {
-      if (chrome.runtime.lastError || !response) {
-        updateDisplay("Extension Error", true);
+function loadSnapshotsBoi(targetUrl) {
+  setDisplayLoadingBoi();
+  slider.disabled = true;
+  removeActiveIframeBoi();
+  try {
+    chrome.runtime.sendMessage({action:"FETCH_SNAPSHOTS", url: targetUrl,}, (response) => {
+      if (chrome.runtime.lastError||!response) {
+        updateDisplayBoi("Extension has Error Boi", true);
         return;
       }
 
@@ -330,43 +347,57 @@ function loadSnapshots(targetUrl) {
           slider.min = 0;
           slider.max = snapshots.length;
           slider.value = snapshots.length;
-          display.innerText = "Live site";
+          updateDisplayBoi(`Found ${snapshots.length} Bo`);
         } else {
-          updateDisplay("No archives", true);
+          updateDisplayBoi("No snapshots found (not Archived)", true);
+          slider.disabled = true;
+          slider.value=0;
+          slider.max=0;
         }
       } else {
-        updateDisplay("API Overloaded", true);
+        updateDisplayBoi("API Overloaded Boi", true);
+        showRetryBoi(targetUrl);
       }
-    },
-  );
+    });
+  } catch (e) {
+    console.error("TimeWarp: please refresh Boi.", e);
+    updateDisplayBoi("Please refresh Boi", true);
+  }
 }
 
-loadSnapshots(currentUrl);
+loadSnapshotsBoi(currentUrl);
 
 chrome.runtime.onMessage.addListener((request) => {
   if (request.action === "URL_CHANGED" && request.url !== currentUrl) {
     currentUrl = request.url;
-    loadSnapshots(currentUrl);
+    loadSnapshotsBoi(currentUrl);
   }
 });
 
-slider.addEventListener("change", (e) => {
-  const idx = parseInt(e.target.value);
+slider.addEventListener("change", (echange) => {
+  const idx = parseInt(echange.target.value);
 
   if (idx === snapshots.length) {
-    updateDisplay("Live site");
-    removeActiveIframe();
+    updateDisplayBoi("Today Boi");
+    removeActiveIframeBoi();
   } else {
     const selectedTimestamp = snapshots[idx];
-    updateDisplay(formatTimestamp(selectedTimestamp));
+    updateDisplayBoi(formatTimestamp(selectedTimestamp));
 
     if (!activeIframe) {
       activeIframe = document.createElement("iframe");
       activeIframe.className = "iframe-overlay";
       activeIframe.style.cssText = `
-                position: fixed;top:0;left:0;width:100vw;height:100vh;
-                border:none;z-index:${maxZ - 1};background:white;pointer-events:auto;
-            `;
+        position: fixed
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        border: none;
+        z-index: ${maxZ - 1};
+        background: white;
+        pointer-events: auto;
+      `;
       document.body.appendChild(activeIframe);
 
       setTimeout(() => {
@@ -384,8 +415,8 @@ slider.addEventListener("change", (e) => {
 slider.addEventListener("input", (e) => {
   const idx = parseInt(e.target.value);
   if (idx === snapshots.length) {
-    updateDisplay("Live site");
+    updateDisplayBoi("Today Boi");
   } else {
-    updateDisplay(formatTimestamp(snapshots[idx]));
+    updateDisplayBoi(formatTimestamp(snapshots[idx]));
   }
 });
