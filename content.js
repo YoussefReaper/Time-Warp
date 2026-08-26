@@ -23,7 +23,6 @@ biggestBox.style.cssText = `
 `;
 theRealContainer.innerHTML = `
     <div class="controls" id="ui-controls">
-        <button id="ui-toggle-btn">Hide</button>
         <button id="ui-theme-btn">Light Mode</button>
     </div>
     <div id="ui-container">
@@ -74,6 +73,7 @@ design.textContent = `
         align-items: center;
         gap: 12px;
         pointer-events: none;
+        z-index: 2;
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
 
@@ -238,7 +238,7 @@ design.textContent = `
         width: 100vw;
         height: 100vh;
         background: #fff;
-        z-index: ${maxZ - 2};
+        z-index: 1;
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.4s ease;
@@ -257,15 +257,8 @@ startFakeUI();
 const slider = theBoxShadow.getElementById("ui-slider");
 const display = theBoxShadow.getElementById("ui-display");
 const uiContainer = theBoxShadow.getElementById("ui-container");
-const toggleBtn = theBoxShadow.getElementById("ui-toggle-btn");
 const themeBtn = theBoxShadow.getElementById("ui-theme-btn");
 const controls = theBoxShadow.getElementById("ui-controls");
-
-toggleBtn.addEventListener("click", ()=> {
-  uiContainer.classList.toggle("collapsed");
-  controls.classList.toggle("active");
-  toggleBtn.innerText = uiContainer.classList.contains("collapsed") ? "I need the old version" : "Please Hide";
-});
 
 themeBtn.addEventListener("click", () => {
   biggestBox.classList.toggle("light-mode");
@@ -374,6 +367,57 @@ chrome.runtime.onMessage.addListener((request) => {
   }
 });
 
+chrome.runtime.onMessage.addListener((request) => {
+  if (request.action === "OPEN_COMPARE") openCompareBoi(request.t1, request.t2, request.url);
+});
+
+chrome.runtime.onMessage.addListener((request) => {
+  if (request.action === "HIDE_UI") biggestBox.style.display = "none";
+  if (request.action === "SHOW_UI") biggestBox.style.display = "";
+});
+
+let compareBox = null;
+
+function fmtCmp(ts) {
+  const y = ts.substring(0, 4), m = ts.substring(4, 6), d = ts.substring(6, 8);
+  return new Date(`${y}-${m}-${d}`).toLocaleDateString("en-US", {month: "short", day: "numeric", year: "numeric"});
+}
+
+function openCompareBoi(t1, t2, url) {
+  if (compareBox) compareBox.remove();
+  compareBox = document.createElement("div");
+  compareBox.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: 2147483646; background: #0d0a14; display: flex; flex-direction: column;
+    pointer-events: auto; font-family: 'Inter', system-ui, sans-serif;
+  `;
+  compareBox.innerHTML = `
+    <div style="display:flex; gap:8px; align-items:center; padding:10px 14px; background:rgba(20,15,31,0.95);">
+      <button id="cmp-close" style="background:rgb(168,85,247);color:#fff;border:none;padding:8px 14px;border-radius:16px;cursor:pointer;font-weight:700;text-transform:uppercase;font-size:11px;">close boi</button>
+      <button id="cmp-blend" style="background:transparent;border:1px solid rgba(139,92,246,0.4);color:rgb(185,174,214);padding:8px 14px;border-radius:16px;cursor:pointer;font-weight:700;text-transform:uppercase;font-size:11px;">blend diff</button>
+      <span style="color:rgb(185,174,214);font-size:12px;margin-left:auto;">start ${fmtCmp(t1)} &nbsp;→&nbsp; end ${fmtCmp(t2)}</span>
+    </div>
+    <div id="cmp-stage" style="position:relative; flex:1; display:flex; overflow:hidden;">
+      <iframe id="cmp-a" style="flex:1; border:none; width:50%; height:100%;"></iframe>
+      <iframe id="cmp-b" style="flex:1; border:none; width:50%; height:100%;"></iframe>
+      <iframe id="cmp-blendframe" style="display:none; position:absolute; top:0; left:50%; width:50%; height:100%; border:none; mix-blend-mode:difference;"></iframe>
+    </div>
+  `;
+  document.documentElement.appendChild(compareBox);
+  const a = compareBox.querySelector("#cmp-a");
+  const b = compareBox.querySelector("#cmp-b");
+  const blend = compareBox.querySelector("#cmp-blendframe");
+  a.src = `https://web.archive.org/web/${t1}id_/${url}`;
+  b.src = `https://web.archive.org/web/${t2}id_/${url}`;
+  let blended = false;
+  compareBox.querySelector("#cmp-close").addEventListener("click", () => { compareBox.remove(); compareBox = null; });
+  compareBox.querySelector("#cmp-blend").addEventListener("click", () => {
+    blended = !blended;
+    blend.style.display = blended ? "block" : "none";
+    if (blended) blend.src = `https://web.archive.org/web/${t2}id_/${url}`;
+  });
+}
+
 slider.addEventListener("change", (echange) => {
   const idx = parseInt(echange.target.value);
 
@@ -388,21 +432,24 @@ slider.addEventListener("change", (echange) => {
       activeIframe = document.createElement("iframe");
       activeIframe.className = "iframe-overlay";
       activeIframe.style.cssText = `
-        position: fixed
+        position: fixed;
         top: 0;
         left: 0;
         width: 100vw;
         height: 100vh;
         border: none;
-        z-index: ${maxZ - 1};
-        background: white;
+        z-index: 2147483646;
+        background: #fff;
         pointer-events: auto;
       `;
-      document.body.appendChild(activeIframe);
+      document.documentElement.appendChild(activeIframe);
+      activeIframe.addEventListener("load", () => console.log("TimeWarp: archive frame loaded boi"));
 
       setTimeout(() => {
         if (activeIframe) activeIframe.style.opacity = "1";
-      }, 100);
+      }, 50);
+    } else {
+      activeIframe.style.opacity = "1";
     }
 
     const archiveUrl = `https://web.archive.org/web/${selectedTimestamp}if_/${currentUrl}`;

@@ -1,115 +1,84 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const toggle = document.getElementById("compare-toggle");
+    const hideToggle = document.getElementById("hide-toggle");
     const ui = document.getElementById("compare-ui");
-    const slider = document.getElementById("pop-slider");
-    const startLbl = document.getElementById("start-lbl");
-    const endLbl = document.getElementById("end-lbl");
+    const startSel = document.getElementById("start-sel");
+    const endSel = document.getElementById("end-sel");
     const goBtn = document.getElementById("go-btn");
-    const aiKey = document.getElementById("ai-key");
-    const aiOut = document.getElementById("ai-out");
-    const pane1 = document.getElementById("pane1");
-    const pane2 = document.getElementById("pane2");
+    const msg = document.getElementById("msg");
 
     let snaps = [];
     let currentTabUrl = '';
-    let clickStep = 0;
-    let t1 = null;
-    let t2 = null;
+    let labels = [];
 
-    const stored = await chrome.storage.local.get(["aiKey"]);
-    if (stored.aiKey) aiKey.value = stored.aiKey;
+    function fmt(ts) {
+        const y = ts.substring(0, 4), m = ts.substring(4, 6), d = ts.substring(6, 8);
+        const date = new Date(`${y}-${m}-${d}`);
+        return date.toLocaleDateString("en-US", {month: "short", day: "numeric", year: "numeric"});
+    }
+    
+    function fillSelects() {
+        startSel.innerHTML = '<option value="">pick start boi</option>';
+        endSel.innerHTML = '<option value="">pick end boi</option>';
+        snaps.forEach((ts, i) => {
+            const o1 = document.createElement("option");
+            o1.value = String(i); o1.text = fmt(ts);
+            startSel.appendChild(o1);
+            const o2 = document.createElement("option");
+            o2.value = String(i); o2.text = fmt(ts);
+            endSel.appendChild(o2);
+        });
+    }
 
-    aiKey.addEventListener("input", () => {
-        chrome.storage.local.set({aiKey: aiKey.value});
+    function refresh() {
+        const ok = startSel.value !== "" && endSel.value !== "" && startSel.value !== endSel.value;
+        goBtn.disabled = !ok;
+        if (startSel.value !== "" && startSel.value === endSel.value) msg.innerText = "pick two different points boi";
+        else msg.innerText = "";
+    }
+
+    startSel.addEventListener("change", refresh);
+    endSel.addEventListener("change", refresh);
+
+    async function sendToTab(msg) {
+        const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+        if (tabs.length) chrome.tabs.sendMessage(tabs[0].id, msg);
+    }
+
+    hideToggle.addEventListener("change", (e) => {
+        sendToTab({action: e.target.checked ? "HIDE_UI" : "SHOW_UI"});
     });
 
-    toggle.addEventListener("change", async(e) => {
-        ui.style.display = e.target.checked ? "block": "none";
+    toggle.addEventListener("change", async (e) => {
+        ui.style.display = e.target.checked ? "block" : "none";
         if (e.target.checked && snaps.length === 0) {
             const tabs = await chrome.tabs.query({active: true, currentWindow: true});
             if (!tabs.length) return;
-            currentTabUrl = tabs[0].url;
+            currentTabUrl = tabs[0].url.split('#')[0];
             const cached = await chrome.storage.local.get([currentTabUrl]);
             if (cached[currentTabUrl]) {
                 snaps = cached[currentTabUrl];
-                slider.disabled = false;
-                slider.min = 0;
-                slider.max = snaps.length - 1;
-                slider.value = 0;
+                fillSelects();
             } else {
-                aiOut.innerText = "no snapshots mapped boi. scrub the page first.";
+                msg.innerText = "no snapshots mapped boi. scrub the page first.";
             }
         }
     });
 
-    slider.addEventListener("change", (e) => {
-        const val = parseInt(e.target.value);
-        const ts = snaps[val];
-        if (clickStep === 0) {
-            t1 = ts;
-            startLbl.innerText = t1;
-            clickStep = 1;
-        } else {
-            t2 = ts;
-            endLbl.innerText = t2;
-            clickStep = 0;
-        }
-    });
-
-    async function fetchExtractBoi(ts) {
-        const u = `https://web.archive.org/web/${ts}id_/${currentTabUrl}`;
-        try {
-            const res = await fetch(u);
-            if (!res.ok) throw new Error("bad fetch");
-            const html = await res.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, "text/html");
-            const text = doc.body ? doc.body.innerText.replace(/\s+/g, " ").trim() : "";
-            return {html, text};
-        } catch(e) {
-            return {html: "Error boi", text: ""};
-        }
-    }
-
-    function textDiffFallback(s1, s2) {
-        const w1 = s1.split(" ").slice(0, 1000);
-        const w2 = s2.split(" ").slice(0, 1000);
-        let o1 = "", o2 ="";
-        const limit = Math.max(w1.length, w2.length);
-        for (let i =0; i < limit; i++) {
-            const a = w1[i] || "";
-            const b = w2[i] || "";
-            if (a===b) {
-                o1 += a + " ";
-                o2 += b + " ";
-            } else {
-                if (a) o1 += `<span class="red-highlight">${a}</span>`;
-                if (b) o2 += `<span class="green-highlight">${b}</span>`;
-            }
-        }
-        pane1.innerHTML = o1;
-        pane2.innerHTML = o2;
-    }
-
-    goBtn.addEventListener("click", async ()=> {
-        if(!t1 || !t2) {
-            aiOut.innerText = "pick two points boi";
-            return;
-        }
-        aiOut.innerText = "fetching archives, wait here boi";
-        const [d1, d2] = await Promise.all([fetchExtractBoi(t1), fetchExtractBoi(t2)]);
-
-        textDiffFallback(d1.text, d2.text);
-
-        aiOut.innerText = "asking ai boi.";
-        chrome.runtime.sendMessage({action: "AI_SUMMARY", t1: d1.text, t2: d2.text},
-            (resp) => {
-                if (chrome.runtime.lastError || !resp.success) {
-                    aiOut.innerText = "summary unavailable boi: " + (resp?.error || "unknown");
-                } else {
-                    aiOut.innerHTML = resp.summary.replace(/\n/g, '<br>');
-                }
-            }
-        );
+    goBtn.addEventListener("click", async () => {
+        const i1 = parseInt(startSel.value), i2 = parseInt(endSel.value);
+        if (isNaN(i1) || isNaN(i2) || i1 === i2) return;
+        const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+        if (!tabs.length) return;
+        msg.innerText = "opening compare boi...";
+        chrome.tabs.sendMessage(tabs[0].id, {
+            action: "OPEN_COMPARE",
+            t1: snaps[i1],
+            t2: snaps[i2],
+            url: currentTabUrl
+        }, (resp) => {
+            if (chrome.runtime.lastError) msg.innerText = "page not ready boi. refresh the tab.";
+            else window.close();
+        });
     });
 });
